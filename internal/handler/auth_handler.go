@@ -8,6 +8,7 @@ import (
 	"social_media/internal/service"
 )
 
+// AuthHandler handles authentication operations.
 type AuthHandler struct {
 	authService service.AuthService
 }
@@ -17,6 +18,7 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
+// RegisterRequest holds the user registration request data.
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required"`
 	Phone    string `json:"phone" binding:"required"`
@@ -47,6 +49,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
+
+// LoginRequest represents the payload for a login request.
 type LoginRequest struct {
 	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
