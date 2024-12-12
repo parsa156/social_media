@@ -28,12 +28,16 @@ func AuthMiddleware(jwtManager *jwt.JWTManager) gin.HandlerFunc {
 		}
 
 		token := parts[1]
+		println("Received Token:", token)
+
 		claims, err := jwtManager.Verify(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
+		println("Token Verified: UserID:", claims.UserID, "Username:", claims.Username)
+
 
 		// Optionally, set user info in context for downstream handlers.
 		c.Set("userID", claims.UserID)
