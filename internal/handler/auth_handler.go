@@ -8,25 +8,21 @@ import (
 	"social_media/internal/service"
 )
 
-// AuthHandler handles authentication operations.
 type AuthHandler struct {
 	authService service.AuthService
 }
 
-// NewAuthHandler creates a new AuthHandler.
 func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// RegisterRequest holds the user registration request data.
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required"`
 	Phone    string `json:"phone" binding:"required"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required,min=6"`
+	Username string `json:"username"` // optional
+	Password string `json:"password" binding:"required,min=8"`
 }
 
-// Register handles user registration.
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -41,7 +37,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"uuid":     user.UUID,
+		"id":       user.ID,
 		"name":     user.Name,
 		"phone":    user.Phone,
 		"username": user.Username,
@@ -49,14 +45,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-
-// LoginRequest represents the payload for a login request.
 type LoginRequest struct {
 	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// Login handles user login.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,3 +65,4 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
+

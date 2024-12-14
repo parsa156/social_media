@@ -11,7 +11,6 @@ import (
 // AuthMiddleware validates the JWT token and sets user info in context.
 func AuthMiddleware(jwtManager *jwt.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get the Authorization header.
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing"})
@@ -19,7 +18,6 @@ func AuthMiddleware(jwtManager *jwt.JWTManager) gin.HandlerFunc {
 			return
 		}
 
-		// Expected format: "Bearer <token>".
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
@@ -27,22 +25,16 @@ func AuthMiddleware(jwtManager *jwt.JWTManager) gin.HandlerFunc {
 			return
 		}
 
-		token := parts[1]
-		println("Received Token:", token)
-
-		claims, err := jwtManager.Verify(token)
+		claims, err := jwtManager.Verify(parts[1])
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
-		println("Token Verified: UserID:", claims.UserID, "Username:", claims.Username)
 
-
-		// Optionally, set user info in context for downstream handlers.
-		c.Set("userID", claims.UserID)
+		// Set the userID and username in context.
+		c.Set("userID", claims.UserID)       // In our JWT, we can store the UUID as UserID
 		c.Set("username", claims.Username)
-
 		c.Next()
 	}
 }

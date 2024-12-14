@@ -14,22 +14,31 @@ type JWTManager struct {
 }
 
 // Claims defines the custom claims structure.
+// Note that UserID is now a string to match the UUID type in the domain model.
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
 // NewJWTManager creates a new JWTManager.
 func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
-	return &JWTManager{secretKey: secretKey, tokenDuration: tokenDuration}
+	return &JWTManager{
+		secretKey:     secretKey,
+		tokenDuration: tokenDuration,
+	}
 }
 
 // Generate creates a new JWT token for a user.
 func (manager *JWTManager) Generate(user *domain.User) (string, error) {
+	username := ""
+	if user.Username != nil {
+		username = *user.Username
+	}
+
 	claims := Claims{
 		UserID:   user.ID,
-		Username: user.Username,
+		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(manager.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

@@ -10,7 +10,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"social_media/internal/domain"
 	"social_media/internal/repository"
 	"social_media/internal/service"
 	"social_media/internal/handler"
@@ -42,10 +41,7 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Auto-migrate the User model (for development; in production use migrations).
-	if err := db.AutoMigrate(&domain.User{}); err != nil {
-		log.Fatalf("Migration failed: %v", err)
-	}
+	
 
 	// Initialize repository, JWT manager, service, and handler.
 	userRepo := repository.NewUserRepository(db)

@@ -2,19 +2,22 @@ package domain
 
 import "time"
 
-// User represents the user entity.
+// User represents the user entity. We use UUID as primary key.
 type User struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UUID      string    `gorm:"uniqueIndex" json:"uuid"`       // Unique code generated for the user.
-	Name      string    `json:"name"`                          // Not unique
-	Phone     string    `gorm:"uniqueIndex" json:"phone"`        // Unique phone number (used for login)
-	Username  string    `gorm:"uniqueIndex" json:"username"`     // Unique username (always starts with '@')
-	Password  string    `json:"-"`                             // Hashed password
+	ID        string    `gorm:"type:uuid;primaryKey" json:"id"` // UUID string as primary key
+	Name      string    `gorm:"not null" json:"name"`
+	Phone     string    `gorm:"unique;not null" json:"phone"`
+	Username  *string   `gorm:"unique" json:"username,omitempty"` // optional at registration; unique when set
+	Password  string    `gorm:"not null" json:"-"`                // hashed password (do not return)
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// UserRepository defines the interface for user persistence.
+// UserRepository defines methods for user persistence.
 type UserRepository interface {
 	Create(user *User) error
 	FindByPhone(phone string) (*User, error)
+	FindByUsername(username string) (*User, error)
+	FindByID(id string) (*User, error)
+	Update(user *User) error
+	Delete(user *User) error
 }

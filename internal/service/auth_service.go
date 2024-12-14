@@ -22,7 +22,6 @@ type authService struct {
 	jwtManager *jwt.JWTManager
 }
 
-// NewAuthService returns a new AuthService.
 func NewAuthService(userRepo domain.UserRepository, jwtManager *jwt.JWTManager) AuthService {
 	return &authService{
 		userRepo:   userRepo,
@@ -30,22 +29,33 @@ func NewAuthService(userRepo domain.UserRepository, jwtManager *jwt.JWTManager) 
 	}
 }
 
-// Register creates a new user.
-// - If the username does not start with '@', it is added.
-// - Generates a unique UUID for the user.
+// Register creates a new user with validation.
 func (s *authService) Register(name, phone, username, password string) (*domain.User, error) {
+	// Basic validation
+	if len(password) < 8 {
+		return nil, errors.New("password must be at least 8 characters")
+	}
+
 	// Check if phone is already registered.
 	if existing, _ := s.userRepo.FindByPhone(phone); existing != nil {
 		return nil, errors.New("phone already registered")
 	}
 
-	// Prepend '@' to the username if needed.
-	if !strings.HasPrefix(username, "@") {
-		username = "@" + username
+	// If username is provided, check for uniqueness.
+	if username != "" {
+		if !strings.HasPrefix(username, "@") {
+			username = "@" + username
+		}
+		if existing, _ := s.userRepo.FindByUsername(username); existing != nil {
+			return nil, errors.New("username already used")
+		}
+	} else {
+		// if not provided, leave it nil.
+		username = ""
 	}
 
-	// Generate a unique UUID.
-	uuidCode := uuid.New().String()
+	// Generate a UUID for the user.
+	userID := uuid.New().String()
 
 	// Hash the password.
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -54,12 +64,16 @@ func (s *authService) Register(name, phone, username, password string) (*domain.
 	}
 
 	user := &domain.User{
-		UUID:      uuidCode,
+		ID:        userID,
 		Name:      name,
 		Phone:     phone,
-		Username:  username,
 		Password:  string(hashedPassword),
 		CreatedAt: time.Now(),
+	}
+
+	// Set username only if provided.
+	if username != "" {
+		user.Username = &username
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -68,7 +82,7 @@ func (s *authService) Register(name, phone, username, password string) (*domain.
 	return user, nil
 }
 
-// Login validates the phone and password and returns a JWT token.
+// Login validates credentials and returns a JWT token.
 func (s *authService) Login(phone, password string) (string, error) {
 	user, err := s.userRepo.FindByPhone(phone)
 	if err != nil {
@@ -78,16 +92,13 @@ func (s *authService) Login(phone, password string) (string, error) {
 		return "", errors.New("invalid credentials")
 	}
 
-	// Compare the hashed password.
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
-	// Generate a JWT token.
 	token, err := s.jwtManager.Generate(user)
 	if err != nil {
 		return "", err
 	}
 	return token, nil
 }
-
