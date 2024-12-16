@@ -12,6 +12,7 @@ import (
 	"social_media/pkg/jwt"
 )
 
+// AuthService interface
 type AuthService interface {
 	Register(name, phone, username, password string) (*domain.User, error)
 	Login(phone, password string) (string, error)
@@ -22,6 +23,7 @@ type authService struct {
 	jwtManager *jwt.JWTManager
 }
 
+// NewAuthService function
 func NewAuthService(userRepo domain.UserRepository, jwtManager *jwt.JWTManager) AuthService {
 	return &authService{
 		userRepo:   userRepo,
