@@ -10,7 +10,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"social_media/internal/domain"
 	"social_media/internal/repository"
 	"social_media/internal/service"
 	"social_media/internal/handler"
@@ -19,11 +18,12 @@ import (
 )
 
 func main() {
-	// Load environment variables.
+	// Load environment variables from configs/config.env
 	if err := godotenv.Load("configs/config.env"); err != nil {
-		log.Fatalf("Error loading config: %v", err)
+		log.Printf("Warning: no config file found, using environment variables")
 	}
 
+	// Retrieve configuration values
 	appPort := os.Getenv("APP_PORT")
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -37,26 +37,43 @@ func main() {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
 		dbHost, dbUser, dbPassword, dbName, dbPort,
 	)
+
+	// Initialize the database connection
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Auto-migrate the User model. (In production, use migration tools.)
-	if err := db.AutoMigrate(&domain.User{}); err != nil {
-		log.Fatalf("Migration failed: %v", err)
-	}
+	// Do NOT call AutoMigrate in production; migrations are handled externally.
+	log.Println("Database connection established.")
 
-	// Initialize repository, services, handlers, and JWT manager.
+	// Initialize repository layer.
 	userRepo := repository.NewUserRepository(db)
+
+	// Initialize additional repositories for messaging.
+	convoRepo := repository.NewConversationRepository(db)
+	messageRepo := repository.NewMessageRepository(db)
+
+	// Initialize JWT Manager.
 	jwtManager := jwt.NewJWTManager(jwtSecret, time.Hour*24) // token valid for 24 hours
+
+	// Initialize service layer.
 	authService := service.NewAuthService(userRepo, jwtManager)
 	profileService := service.NewProfileService(userRepo)
+	convoService := service.NewConversationService(convoRepo, messageRepo)
+
+	// Initialize handler layer.
 	authHandler := handler.NewAuthHandler(authService)
 	profileHandler := handler.NewProfileHandler(profileService)
+	convoHandler := handler.NewConversationHandler(convoService)
 
-	// Set up router.
-	r := router.SetupRouter(authHandler, profileHandler, jwtManager)
+	// Setup the router with all endpoints.
+	r := router.SetupRouter(authHandler, profileHandler, convoHandler, jwtManager)
+
+	// Start the server.
+	if appPort == "" {
+		appPort = "8080"
+	}
 	log.Printf("Server starting on port %s...", appPort)
 	if err := r.Run(":" + appPort); err != nil {
 		log.Fatalf("Server failed: %v", err)
