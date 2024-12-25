@@ -23,8 +23,11 @@ func main() {
 		log.Printf("Warning: no config file found, using environment variables")
 	}
 
-	// Retrieve configuration values
+	// Retrieve configuration values.
 	appPort := os.Getenv("APP_PORT")
+	if appPort == "" {
+		appPort = "8080"
+	}
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbUser := os.Getenv("DB_USER")
@@ -38,42 +41,39 @@ func main() {
 		dbHost, dbUser, dbPassword, dbName, dbPort,
 	)
 
-	// Initialize the database connection
+	// Initialize the database connection.
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Do NOT call AutoMigrate in production; migrations are handled externally.
+	// NOTE: Do not use AutoMigrate in production.
+	// Migrations are assumed to be handled externally via migration files.
 	log.Println("Database connection established.")
 
-	// Initialize repository layer.
+	// Initialize repositories.
 	userRepo := repository.NewUserRepository(db)
-
-	// Initialize additional repositories for messaging.
 	convoRepo := repository.NewConversationRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 
-	// Initialize JWT Manager.
-	jwtManager := jwt.NewJWTManager(jwtSecret, time.Hour*24) // token valid for 24 hours
+	// Initialize the JWT Manager.
+	jwtManager := jwt.NewJWTManager(jwtSecret, time.Hour*24) // Token valid for 24 hours.
 
-	// Initialize service layer.
+	// Initialize services.
 	authService := service.NewAuthService(userRepo, jwtManager)
 	profileService := service.NewProfileService(userRepo)
-	convoService := service.NewConversationService(convoRepo, messageRepo)
+	// Pass userRepo to conversation service so it can look up recipients by phone or username.
+	convoService := service.NewConversationService(convoRepo, messageRepo, userRepo)
 
-	// Initialize handler layer.
+	// Initialize handlers.
 	authHandler := handler.NewAuthHandler(authService)
 	profileHandler := handler.NewProfileHandler(profileService)
 	convoHandler := handler.NewConversationHandler(convoService)
 
-	// Setup the router with all endpoints.
+	// Setup the router with public and protected endpoints.
 	r := router.SetupRouter(authHandler, profileHandler, convoHandler, jwtManager)
 
 	// Start the server.
-	if appPort == "" {
-		appPort = "8080"
-	}
 	log.Printf("Server starting on port %s...", appPort)
 	if err := r.Run(":" + appPort); err != nil {
 		log.Fatalf("Server failed: %v", err)
