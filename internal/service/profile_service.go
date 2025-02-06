@@ -18,6 +18,7 @@ type ProfileService interface {
 type profileService struct {
 	userRepo domain.UserRepository
 }
+
 // NewProfileService function
 func NewProfileService(userRepo domain.UserRepository) ProfileService {
 	return &profileService{

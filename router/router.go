@@ -1,10 +1,11 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	"social_media/internal/handler"
 	"social_media/internal/middleware"
 	"social_media/pkg/jwt"
+
+	"github.com/gin-gonic/gin"
 )
 
 // SetupRouter initializes all routes with middleware.
@@ -20,13 +21,13 @@ func SetupRouter(authHandler *handler.AuthHandler, profileHandler *handler.Profi
 
 	// Protected routes.
 	protected := r.Group("/api")
-	protected.Use(middleware.AuthMiddleware(jwtManager))
 	{
+		protected.Use(middleware.AuthMiddleware(jwtManager))
 		// Profile endpoints.
 		protected.GET("/profile", profileHandler.GetProfile)
 		protected.PUT("/profile", profileHandler.UpdateProfile)
 		protected.DELETE("/profile", profileHandler.DeleteProfile)
-
+		
 		// Conversation endpoints.
 		// Send a message (creates a conversation if needed).
 		protected.POST("/conversations/send", convoHandler.SendMessageEndpoint)

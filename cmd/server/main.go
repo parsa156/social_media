@@ -18,8 +18,8 @@ import (
 )
 
 func main() {
-	// Load environment variables from configs/config.env
-	if err := godotenv.Load("configs/config.env"); err != nil {
+	// Load environment variables from .env
+	if err := godotenv.Load(".env"); err != nil {
 		log.Printf("Warning: no config file found, using environment variables")
 	}
 

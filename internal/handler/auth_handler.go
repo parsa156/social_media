@@ -63,6 +63,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	// Set the token in the response header.
+	c.Header("Authorization", "Bearer " + token)
+	// Return a success message in the response body.
+	c.JSON(http.StatusOK, gin.H{"message": "login successful"})
 }
 
