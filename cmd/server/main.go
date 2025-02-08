@@ -1,14 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"social_media/internal/repository"
 	"social_media/internal/service"
@@ -35,26 +35,23 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	// Build the PostgreSQL DSN.
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
-		dbHost, dbUser, dbPassword, dbName, dbPort,
-	)
+	// Build the PostgreSQL connection string for pgx.
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	// Initialize the database connection.
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	ctx := context.Background()
+	pool, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Unable to connect to database: %v", err)
 	}
+	defer pool.Close()
 
-	// NOTE: Do not use AutoMigrate in production.
-	// Migrations are assumed to be handled externally via migration files.
-	log.Println("Database connection established.")
+	log.Println("Database connection established using pgx.")
 
-	// Initialize repositories.
-	userRepo := repository.NewUserRepository(db)
-	convoRepo := repository.NewConversationRepository(db)
-	messageRepo := repository.NewMessageRepository(db)
+	// Initialize repositories using the pgx pool.
+	userRepo := repository.NewUserRepository(pool)
+	convoRepo := repository.NewConversationRepository(pool)
+	messageRepo := repository.NewMessageRepository(pool)
 
 	// Initialize the JWT Manager.
 	jwtManager := jwt.NewJWTManager(jwtSecret, time.Hour*24) // Token valid for 24 hours.
@@ -62,7 +59,6 @@ func main() {
 	// Initialize services.
 	authService := service.NewAuthService(userRepo, jwtManager)
 	profileService := service.NewProfileService(userRepo)
-	// Pass userRepo to conversation service so it can look up recipients by phone or username.
 	convoService := service.NewConversationService(convoRepo, messageRepo, userRepo)
 
 	// Initialize handlers.
@@ -79,3 +75,4 @@ func main() {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
+
