@@ -101,3 +101,83 @@ func (s *roomService) DeleteRoom(roomID, requesterID string) error {
 	}
 	return s.roomRepo.Delete(roomID)
 }
+
+func (s *roomService) AddMember(roomID, requesterID, userID string) error {
+	room, err := s.roomRepo.FindByID(roomID)
+	if err != nil || room == nil {
+		return errors.New("room not found")
+	}
+	// Check if user is already a member.
+	existingRole, err := s.membershipRepo.GetMemberRole(roomID, userID)
+	if err != nil {
+		return err
+	}
+	if existingRole != "" {
+		return errors.New("user already a member")
+	}
+	// In channels, only owner/admin can add members.
+	if room.Type == domain.RoomTypeChannel {
+		reqRole, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+		if err != nil {
+			return err
+		}
+		if reqRole != domain.RoleOwner && reqRole != domain.RoleAdmin {
+			return errors.New("not authorized to add member to channel")
+		}
+	}
+	membership := &domain.RoomMembership{
+		RoomID:    roomID,
+		UserID:    userID,
+		Role:      domain.RoleMember,
+		CreatedAt: time.Now(),
+	}
+	return s.membershipRepo.AddMember(membership)
+}
+
+func (s *roomService) RemoveMember(roomID, requesterID, userID string) error {
+	// If not self-removal, only owner/admin can remove a member.
+	if requesterID != userID {
+		reqRole, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+		if err != nil {
+			return err
+		}
+		if reqRole != domain.RoleOwner && reqRole != domain.RoleAdmin {
+			return errors.New("not authorized to remove member")
+		}
+	}
+	return s.membershipRepo.RemoveMember(roomID, userID)
+}
+
+func (s *roomService) PromoteMember(roomID, requesterID, userID string) error {
+	reqRole, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+	if err != nil {
+		return err
+	}
+	if reqRole != domain.RoleOwner {
+		return errors.New("only owner can promote member")
+	}
+	return s.membershipRepo.UpdateMemberRole(roomID, userID, domain.RoleAdmin)
+}
+
+func (s *roomService) BanMember(roomID, requesterID, userID string) error {
+	reqRole, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+	if err != nil {
+		return err
+	}
+	if reqRole != domain.RoleOwner && reqRole != domain.RoleAdmin {
+		return errors.New("not authorized to ban member")
+	}
+	return s.membershipRepo.UpdateMemberRole(roomID, userID, domain.RoleBanned)
+}
+
+func (s *roomService) UnbanMember(roomID, requesterID, userID string) error {
+	reqRole, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+	if err != nil {
+		return err
+	}
+	if reqRole != domain.RoleOwner && reqRole != domain.RoleAdmin {
+		return errors.New("not authorized to unban member")
+	}
+	return s.membershipRepo.UpdateMemberRole(roomID, userID, domain.RoleMember)
+}
+
