@@ -33,7 +33,13 @@ func NewRoomService(
 	roomRepo domain.RoomRepository,
 	membershipRepo domain.RoomMembershipRepository,
 	messageRepo domain.RoomMessageRepository,
-)
+) RoomService {
+	return &roomService{
+		roomRepo:       roomRepo,
+		membershipRepo: membershipRepo,
+		messageRepo:    messageRepo,
+	}
+}
 
 func (s *roomService) CreateRoom(ownerID, name, username string, roomType domain.RoomType) (*domain.Room, error) {
 	room := &domain.Room{
@@ -181,3 +187,63 @@ func (s *roomService) UnbanMember(roomID, requesterID, userID string) error {
 	return s.membershipRepo.UpdateMemberRole(roomID, userID, domain.RoleMember)
 }
 
+func (s *roomService) SendMessage(roomID, senderID, content string) (*domain.RoomMessage, error) {
+	// Check ban status.
+	banned, err := s.membershipRepo.IsUserBanned(roomID, senderID)
+	if err != nil {
+		return nil, err
+	}
+	if banned {
+		return nil, errors.New("you are banned from this room")
+	}
+	room, err := s.roomRepo.FindByID(roomID)
+	if err != nil || room == nil {
+		return nil, errors.New("room not found")
+	}
+	// In channels, only owner/admin may send messages.
+	if room.Type == domain.RoomTypeChannel {
+		role, err := s.membershipRepo.GetMemberRole(roomID, senderID)
+		if err != nil {
+			return nil, err
+		}
+		if role != domain.RoleOwner && role != domain.RoleAdmin {
+			return nil, errors.New("not authorized to send message in channel")
+		}
+	}
+	message := &domain.RoomMessage{
+		ID:        uuid.New().String(),
+		RoomID:    roomID,
+		SenderID:  senderID,
+		Content:   content,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := s.messageRepo.Create(message); err != nil {
+		return nil, err
+	}
+	return message, nil
+}
+
+func (s *roomService) DeleteMessage(roomID, requesterID, messageID string) error {
+	message, err := s.messageRepo.FindByID(messageID)
+	if err != nil || message == nil {
+		return errors.New("message not found")
+	}
+	role, err := s.membershipRepo.GetMemberRole(roomID, requesterID)
+	if err != nil {
+		return err
+	}
+	// If requester is not owner/admin, they may only delete their own message.
+	if role != domain.RoleOwner && role != domain.RoleAdmin && message.SenderID != requesterID {
+		return errors.New("not authorized to delete this message")
+	}
+	return s.messageRepo.Delete(messageID)
+}
+
+func (s *roomService) GetMessages(roomID string) ([]*domain.RoomMessage, error) {
+	return s.messageRepo.FindByRoom(roomID)
+}
+
+func (s *roomService) GetMembers(roomID string) ([]*domain.RoomMembership, error) {
+	return s.membershipRepo.GetMembers(roomID)
+}
