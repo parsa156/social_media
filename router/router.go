@@ -8,8 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRouter initializes all routes with middleware.
-func SetupRouter(authHandler *handler.AuthHandler, profileHandler *handler.ProfileHandler, convoHandler *handler.ConversationHandler, jwtManager *jwt.JWTManager) *gin.Engine {
+func SetupRouter(authHandler *handler.AuthHandler, profileHandler *handler.ProfileHandler, convoHandler *handler.ConversationHandler, roomHandler *handler.RoomHandler, jwtManager *jwt.JWTManager) *gin.Engine {
 	r := gin.Default()
 
 	// Public routes.
@@ -27,18 +26,27 @@ func SetupRouter(authHandler *handler.AuthHandler, profileHandler *handler.Profi
 		protected.GET("/profile", profileHandler.GetProfile)
 		protected.PUT("/profile", profileHandler.UpdateProfile)
 		protected.DELETE("/profile", profileHandler.DeleteProfile)
-		
+
 		// Conversation endpoints.
-		// Send a message (creates a conversation if needed).
 		protected.POST("/conversations/send", convoHandler.SendMessageEndpoint)
-		// List conversations for the authenticated user.
 		protected.GET("/conversations", convoHandler.ListConversations)
-		// Get messages for a specific conversation.
 		protected.GET("/conversations/:id/messages", convoHandler.GetMessages)
-		// Update a message (only sender can update).
 		protected.PUT("/messages/:id", convoHandler.UpdateMessage)
-		// Delete a message (only sender can delete).
 		protected.DELETE("/messages/:id", convoHandler.DeleteMessage)
+
+		// Room endpoints.
+		protected.POST("/rooms", roomHandler.CreateRoom)
+		protected.PUT("/rooms", roomHandler.UpdateRoom)
+		protected.DELETE("/rooms", roomHandler.DeleteRoom)
+		protected.POST("/rooms/add-member", roomHandler.AddMember)
+		protected.POST("/rooms/remove-member", roomHandler.RemoveMember)
+		protected.POST("/rooms/promote-member", roomHandler.PromoteMember)
+		protected.POST("/rooms/ban-member", roomHandler.BanMember)
+		protected.POST("/rooms/unban-member", roomHandler.UnbanMember)
+		protected.POST("/rooms/send-message", roomHandler.SendMessage)
+		protected.DELETE("/rooms/delete-message", roomHandler.DeleteMessage)
+		protected.GET("/rooms/:roomID/messages", roomHandler.GetMessages)
+		protected.GET("/rooms/:roomID/members", roomHandler.GetMembers)
 	}
 
 	return r
