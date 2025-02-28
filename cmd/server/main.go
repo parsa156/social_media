@@ -52,6 +52,9 @@ func main() {
 	userRepo := repository.NewUserRepository(pool)
 	convoRepo := repository.NewConversationRepository(pool)
 	messageRepo := repository.NewMessageRepository(pool)
+	roomRepo := repository.NewRoomRepository(pool)
+	roomMembershipRepo := repository.NewRoomMembershipRepository(pool)
+	roomMessageRepo := repository.NewRoomMessageRepository(pool)
 
 	// Initialize the JWT Manager.
 	jwtManager := jwt.NewJWTManager(jwtSecret, time.Hour*24) // Token valid for 24 hours.
@@ -60,14 +63,16 @@ func main() {
 	authService := service.NewAuthService(userRepo, jwtManager)
 	profileService := service.NewProfileService(userRepo)
 	convoService := service.NewConversationService(convoRepo, messageRepo, userRepo)
+	roomService := service.NewRoomService(roomRepo, roomMembershipRepo, roomMessageRepo)
 
 	// Initialize handlers.
 	authHandler := handler.NewAuthHandler(authService)
 	profileHandler := handler.NewProfileHandler(profileService)
 	convoHandler := handler.NewConversationHandler(convoService)
+	roomHandler := handler.NewRoomHandler(roomService)
 
 	// Setup the router with public and protected endpoints.
-	r := router.SetupRouter(authHandler, profileHandler, convoHandler, jwtManager)
+	r := router.SetupRouter(authHandler, profileHandler, convoHandler, roomHandler, jwtManager)
 
 	// Start the server.
 	log.Printf("Server starting on port %s...", appPort)
@@ -75,4 +80,3 @@ func main() {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
-
