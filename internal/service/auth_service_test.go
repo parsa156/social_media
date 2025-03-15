@@ -74,8 +74,8 @@ func TestRegisterWithoutUsername(t *testing.T) {
 
 	assert.NotNil(t, user)
 	assert.Nil(t, err)
-	// Username remains empty (set as empty string).
-	assert.Equal(t, "", *user.Username)
+	// When no username is provided, user.Username remains nil.
+	assert.Nil(t, user.Username)
 	userRepoMock.AssertExpectations(t)
 }
 
