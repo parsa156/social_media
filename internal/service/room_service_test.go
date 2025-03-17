@@ -72,3 +72,71 @@ func TestUpdateRoomSuccess(t *testing.T) {
 	membershipRepoMock.AssertExpectations(t)
 }
 
+// Test 4: Delete room unauthorized.
+func TestDeleteRoomUnauthorized(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	room := &domain.Room{ID: "room1", Name: "Test Room", OwnerID: "owner1"}
+	roomRepoMock.On("FindByID", "room1").Return(room, nil)
+	membershipRepoMock.On("GetMemberRole", "room1", "user2").Return(domain.RoleMember, nil)
+
+	err := roomService.DeleteRoom("room1", "user2")
+	assert.EqualError(t, err, "not authorized to delete room")
+	roomRepoMock.AssertExpectations(t)
+	membershipRepoMock.AssertExpectations(t)
+}
+
+// Test 5: Add member already exists.
+func TestAddMemberAlreadyExists(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	room := &domain.Room{ID: "room1", Type: domain.RoomTypeGroup}
+	roomRepoMock.On("FindByID", "room1").Return(room, nil)
+	membershipRepoMock.On("GetMemberRole", "room1", "userX").Return(domain.RoleMember, nil)
+
+	err := roomService.AddMember("room1", "owner1", "userX")
+	assert.EqualError(t, err, "user already a member")
+	roomRepoMock.AssertExpectations(t)
+	membershipRepoMock.AssertExpectations(t)
+}
+
+// Test 6: Remove member unauthorized.
+func TestRemoveMemberUnauthorized(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	// For self-removal, no authorization check is needed.
+	// For removing someone else: requester must be owner/admin.
+	membershipRepoMock.On("GetMemberRole", "room1", "user2").Return(domain.RoleMember, nil)
+	membershipRepoMock.On("GetMemberRole", "room1", "user3").Return(domain.RoleMember, nil)
+
+	err := roomService.RemoveMember("room1", "user3", "user2")
+	assert.EqualError(t, err, "not authorized to remove member")
+	membershipRepoMock.AssertExpectations(t)
+}
+
+// Test 7: Promote member unauthorized.
+func TestPromoteMemberUnauthorized(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	// Requester is not owner.
+	membershipRepoMock.On("GetMemberRole", "room1", "user3").Return(domain.RoleMember, nil)
+
+	err := roomService.PromoteMember("room1", "user3", "user2")
+	assert.EqualError(t, err, "only owner can promote member")
+	membershipRepoMock.AssertExpectations(t)
+}
+
+
+
