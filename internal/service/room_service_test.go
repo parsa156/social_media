@@ -113,15 +113,14 @@ func TestRemoveMemberUnauthorized(t *testing.T) {
 	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
 	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
 
-	// For self-removal, no authorization check is needed.
-	// For removing someone else: requester must be owner/admin.
-	membershipRepoMock.On("GetMemberRole", "room1", "user2").Return(domain.RoleMember, nil)
+	// Only set expectation for the requester (user3) since the code checks that role.
 	membershipRepoMock.On("GetMemberRole", "room1", "user3").Return(domain.RoleMember, nil)
 
 	err := roomService.RemoveMember("room1", "user3", "user2")
 	assert.EqualError(t, err, "not authorized to remove member")
 	membershipRepoMock.AssertExpectations(t)
 }
+
 
 // Test 7: Promote member unauthorized.
 func TestPromoteMemberUnauthorized(t *testing.T) {
@@ -138,5 +137,34 @@ func TestPromoteMemberUnauthorized(t *testing.T) {
 	membershipRepoMock.AssertExpectations(t)
 }
 
+// Test 8: Ban member unauthorized.
+func TestBanMemberUnauthorized(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	// Requester is not owner/admin.
+	membershipRepoMock.On("GetMemberRole", "room1", "user3").Return(domain.RoleMember, nil)
+
+	err := roomService.BanMember("room1", "user3", "user2")
+	assert.EqualError(t, err, "not authorized to ban member")
+	membershipRepoMock.AssertExpectations(t)
+}
+
+// Test 9: Send room message by a banned user.
+func TestSendRoomMessageBannedUser(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	membershipRepoMock.On("IsUserBanned", "room1", "user1").Return(true, nil)
+
+	msg, err := roomService.SendMessage("room1", "user1", "Hello in room")
+	assert.Nil(t, msg)
+	assert.EqualError(t, err, "you are banned from this room")
+	membershipRepoMock.AssertExpectations(t)
+}
 
 
