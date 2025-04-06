@@ -166,5 +166,71 @@ func TestSendRoomMessageBannedUser(t *testing.T) {
 	assert.EqualError(t, err, "you are banned from this room")
 	membershipRepoMock.AssertExpectations(t)
 }
+//Test 10 Send Room Message Success
+func TestSendRoomMessageSuccess(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
 
+	// Arrange: User is not banned, and room exists.
+	membershipRepoMock.On("IsUserBanned", "room1", "user1").Return(false, nil)
+	room := &domain.Room{ID: "room1", Type: domain.RoomTypeGroup}
+	roomRepoMock.On("FindByID", "room1").Return(room, nil)
+	roomMessageRepoMock.On("Create", mock.AnythingOfType("*domain.RoomMessage")).Return(nil).Run(func(args mock.Arguments) {
+		msg := args.Get(0).(*domain.RoomMessage)
+		msg.ID = "msg1"
+	})
+
+	// Act: User sends a message.
+	msg, err := roomService.SendMessage("room1", "user1", "Hello Room!")
+
+	// Assert: The message is created successfully.
+	assert.NotNil(t, msg)
+	assert.Equal(t, "msg1", msg.ID)
+	assert.Nil(t, err)
+	membershipRepoMock.AssertExpectations(t)
+	roomRepoMock.AssertExpectations(t)
+	roomMessageRepoMock.AssertExpectations(t)
+}
+//Test 11 Unban Member Success
+func TestUnbanMemberSuccess(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	// Arrange: Requester is admin.
+	membershipRepoMock.On("GetMemberRole", "room1", "admin1").Return(domain.RoleAdmin, nil)
+	membershipRepoMock.On("UpdateMemberRole", "room1", "user2", domain.RoleMember).Return(nil)
+
+	// Act: Admin unbans a member.
+	err := roomService.UnbanMember("room1", "admin1", "user2")
+
+	// Assert: No error is returned.
+	assert.Nil(t, err)
+	membershipRepoMock.AssertExpectations(t)
+}
+
+//Test 12 Delete Room Success
+func TestDeleteRoomSuccess(t *testing.T) {
+	roomRepoMock := new(mocks.RoomRepositoryMock)
+	membershipRepoMock := new(mocks.RoomMembershipRepositoryMock)
+	roomMessageRepoMock := new(mocks.RoomMessageRepositoryMock)
+	roomService := NewRoomService(roomRepoMock, membershipRepoMock, roomMessageRepoMock)
+
+	// Arrange: Room exists and requester is owner.
+	room := &domain.Room{ID: "room1", OwnerID: "owner1"}
+	roomRepoMock.On("FindByID", "room1").Return(room, nil)
+	membershipRepoMock.On("GetMemberRole", "room1", "owner1").Return(domain.RoleOwner, nil)
+	roomRepoMock.On("Delete", "room1").Return(nil)
+
+	// Act: Owner deletes the room.
+	err := roomService.DeleteRoom("room1", "owner1")
+
+	// Assert: No error occurs.
+	assert.Nil(t, err)
+	roomRepoMock.AssertExpectations(t)
+	membershipRepoMock.AssertExpectations(t)
+}
 
